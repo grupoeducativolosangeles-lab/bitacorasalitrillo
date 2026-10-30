@@ -1,0 +1,998 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bitácora Salitrillo - Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-body: #f4f6f9;
+            --bg-sidebar: #1e293b;
+            --bg-card: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --blue-primary: #2563eb;
+            --blue-dark: #1d4ed8;
+            --green-success: #16a34a;
+            --red-danger: #dc2626;
+            --yellow-warning: #d97706;
+            --border-color: #e2e8f0;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        body { background-color: var(--bg-body); color: var(--text-main); display: flex; height: 100vh; overflow: hidden; }
+
+        /* SIDEBAR */
+        .sidebar { width: 260px; background-color: var(--bg-sidebar); color: white; display: flex; flex-direction: column; padding: 20px 0; flex-shrink: 0; }
+        .sidebar-header { padding: 0 20px 20px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .sidebar-header h1 { font-size: 22px; font-weight: 800; line-height: 1.1; color: #fff; }
+        .sidebar-header span { color: var(--blue-primary); }
+        .sidebar-header p { font-size: 12px; color: #94a3b8; margin-top: 8px; display: flex; align-items: center; gap: 6px; }
+        .dot-cloud { width: 8px; height: 8px; background-color: var(--green-success); border-radius: 50%; display: inline-block; }
+        
+        .sidebar-menu { padding: 20px 10px; flex: 1; overflow-y: auto; }
+        .menu-item { display: flex; align-items: center; padding: 12px 16px; border-radius: 8px; color: #cbd5e1; text-decoration: none; font-size: 14px; font-weight: 500; margin-bottom: 4px; transition: all 0.2s; cursor: pointer; }
+        .menu-item:hover { background-color: rgba(255,255,255,0.05); color: white; }
+        .menu-item.active { background-color: var(--blue-primary); color: white; }
+        .menu-item svg { width: 18px; height: 18px; margin-right: 12px; }
+        
+        .month-section { margin-top: 24px; }
+        .month-title { font-size: 11px; font-weight: 700; color: #64748b; padding: 0 16px; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .month-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; border-radius: 8px; color: #cbd5e1; font-size: 14px; }
+        .month-item .badge { background-color: #334155; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+
+        /* MAIN CONTENT */
+        .main-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+        
+        /* HEADER */
+        .header { background-color: var(--bg-card); border-bottom: 1px solid var(--border-color); padding: 16px 30px; display: flex; justify-content: space-between; align-items: center; }
+        .header h2 { font-size: 24px; font-weight: 700; }
+        .header-actions { display: flex; align-items: center; gap: 12px; }
+        .date-time { background: #f1f5f9; padding: 8px 14px; border-radius: 8px; font-size: 13px; color: var(--text-muted); font-weight: 500; }
+        .btn { display: flex; align-items: center; gap: 8px; padding: 9px 16px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; transition: 0.2s; }
+        .btn-outline { background: white; border: 1px solid var(--border-color); color: var(--text-main); }
+        .btn-outline:hover { background: #f8fafc; }
+        .btn-primary { background: var(--blue-primary); color: white; }
+        .btn-primary:hover { background: var(--blue-dark); }
+        .btn-danger { background: var(--red-danger); color: white; }
+        .btn-danger:hover { background: #b91c1c; }
+        .btn-sm { padding: 6px 10px; font-size: 12px; border-radius: 6px; }
+        .btn-danger-outline { background: white; border: 1px solid #fca5a5; color: var(--red-danger); }
+        .btn-danger-outline:hover { background: #fef2f2; }
+
+        /* DASHBOARD CONTENT */
+        .dashboard-scroll { padding: 24px 30px; overflow-y: auto; flex: 1; }
+        
+        /* KPIS */
+        .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-bottom: 24px; }
+        .kpi-card { background: var(--bg-card); border-radius: 12px; padding: 20px; border-left: 5px solid transparent; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .kpi-card.total { border-left-color: var(--blue-primary); }
+        .kpi-card.resolved { border-left-color: var(--green-success); }
+        .kpi-card.unresolved { border-left-color: var(--red-danger); }
+        .kpi-card.in-progress { border-left-color: var(--yellow-warning); }
+        
+        .kpi-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+        .total .kpi-label { color: var(--blue-primary); }
+        .resolved .kpi-label { color: var(--green-success); }
+        .unresolved .kpi-label { color: var(--red-danger); }
+        .in-progress .kpi-label { color: var(--yellow-warning); }
+        
+        .kpi-value { font-size: 36px; font-weight: 800; line-height: 1; margin-bottom: 4px; }
+        .total .kpi-value { color: var(--text-main); }
+        .resolved .kpi-value { color: #166534; }
+        .unresolved .kpi-value { color: #991b1b; }
+        .in-progress .kpi-value { color: #854d0e; }
+        .kpi-sub { font-size: 12px; color: var(--text-muted); }
+
+        /* CHARTS GRID */
+        .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px; }
+        @media (max-width: 900px) { .charts-grid { grid-template-columns: 1fr; } }
+        
+        .card { background: var(--bg-card); border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-bottom: 24px; }
+        .card h3 { font-size: 16px; font-weight: 700; margin-bottom: 16px; color: var(--text-main); }
+        .chart-container { position: relative; height: 280px; width: 100%; display: flex; justify-content: center; align-items: center; }
+
+        /* TABLA DE REGISTROS */
+        .table-responsive { width: 100%; overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; }
+        th { background: #f8fafc; padding: 12px 14px; font-weight: 700; color: var(--text-muted); border-bottom: 1px solid var(--border-color); white-space: nowrap; }
+        td { padding: 12px 14px; border-bottom: 1px solid var(--border-color); color: var(--text-main); white-space: nowrap; }
+        tr:hover { background-color: #f8fafc; }
+
+        .action-buttons {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* BADGES / BOTONES DE ESTATUS */
+        .btn-badge-estatus {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+            border: 1px solid transparent;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .btn-badge-estatus:hover {
+            transform: translateY(-1px);
+            filter: brightness(0.96);
+        }
+        
+        .badge-resuelto {
+            background-color: #dcfce7;
+            color: #15803d;
+            border-color: #86efac;
+        }
+        .badge-proceso {
+            background-color: #fef3c7;
+            color: #b45309;
+            border-color: #fde68a;
+        }
+        .badge-sin-resolver {
+            background-color: #fee2e2;
+            color: #b91c1c;
+            border-color: #fca5a5;
+        }
+
+        /* MODALES */
+        .modal-overlay, .asesor-modal-overlay, .status-modal-overlay, .confirm-modal-overlay { 
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0; 
+            background: rgba(15, 23, 42, 0.6); 
+            display: none; justify-content: center; align-items: center; 
+            z-index: 1000; 
+            backdrop-filter: blur(2px);
+        }
+        .modal-overlay.active, .asesor-modal-overlay.active, .status-modal-overlay.active, .confirm-modal-overlay.active { display: flex; }
+        .modal { background: white; width: 520px; max-width: 95vw; border-radius: 14px; padding: 25px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
+        .asesor-modal { background: white; width: 350px; border-radius: 14px; padding: 25px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
+        .status-modal { background: white; width: 380px; border-radius: 14px; padding: 24px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
+        .confirm-modal { background: white; width: 400px; max-width: 90vw; border-radius: 14px; padding: 24px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); text-align: center; }
+        
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: var(--text-main); }
+        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 10px 12px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 14px; font-family: inherit; }
+        
+        .input-readonly { background-color: #f1f5f9; color: #475569; cursor: not-allowed; border-color: #cbd5e1; font-weight: 600; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 25px; }
+        .btn-cancel { background: #f1f5f9; color: var(--text-main); }
+
+        /* LISTA OPCIONES MODAL CAMBIO DE ESTATUS */
+        .status-options-list { display: flex; flex-direction: column; gap: 10px; margin: 18px 0; }
+        .status-opt-btn {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            border-radius: 10px;
+            border: 2px solid transparent;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.2s ease;
+        }
+        .status-opt-btn:hover {
+            transform: scale(1.02);
+        }
+        .status-opt-btn.opt-resuelto {
+            background-color: #f0fdf4;
+            color: #15803d;
+            border-color: #bbf7d0;
+        }
+        .status-opt-btn.opt-proceso {
+            background-color: #fffbeb;
+            color: #b45309;
+            border-color: #fef3c7;
+        }
+        .status-opt-btn.opt-sin-resolver {
+            background-color: #fef2f2;
+            color: #b91c1c;
+            border-color: #fecaca;
+        }
+
+        /* BOTÓN FLOTANTE */
+        .fab { position: fixed; bottom: 30px; right: 30px; width: 60px; height: 60px; background-color: var(--blue-primary); color: white; border-radius: 50%; display: flex; justify-content: center; align-items: center; box-shadow: 0 4px 10px rgba(37, 99, 235, 0.4); cursor: pointer; transition: transform 0.2s; z-index: 900; border: none; }
+        .fab:hover { transform: scale(1.1); background-color: var(--blue-dark); }
+        .fab svg { width: 30px; height: 30px; }
+
+        /* NOTIFICACIÓN TOAST */
+        #toast {
+            position: fixed;
+            top: 25px;
+            right: 25px;
+            background: #1e293b;
+            color: #ffffff;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+            transform: translateY(-100px);
+            opacity: 0;
+            transition: 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            z-index: 2000;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        #toast.show { transform: translateY(0); opacity: 1; }
+    </style>
+</head>
+<body>
+
+    <div id="toast">✅ Acción realizada con éxito</div>
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h1>Bitácora<br><span>Salitrillo</span></h1>
+            <p><span class="dot-cloud"></span> <span id="total-count-sidebar">0</span> registros en la nube</p>
+        </div>
+        <div class="sidebar-menu">
+            <a href="#" class="menu-item active">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                Dashboard
+            </a>
+            
+            <div class="month-section" id="sidebar-month-list">
+                <div class="month-title">POR MES</div>
+                <div class="month-item" data-month="0"><span>Enero</span><span class="badge">0</span></div>
+                <div class="month-item" data-month="1"><span>Febrero</span><span class="badge">0</span></div>
+                <div class="month-item" data-month="2"><span>Marzo</span><span class="badge">0</span></div>
+                <div class="month-item" data-month="3"><span>Abril</span><span class="badge">0</span></div>
+                <div class="month-item" data-month="4"><span>Mayo</span><span class="badge">0</span></div>
+                <div class="month-item" data-month="5"><span>Junio</span><span class="badge">0</span></div>
+                <div class="month-item" data-month="6"><span>Julio</span><span class="badge">0</span></div>
+                <div class="month-item" data-month="7"><span>Agosto</span><span class="badge">0</span></div>
+                <div class="month-item" data-month="8"><span>Septiembre</span><span class="badge">0</span></div>
+                <div class="month-item" data-month="9"><span>Octubre</span><span class="badge">0</span></div>
+                <div class="month-item" data-month="10"><span>Noviembre</span><span class="badge">0</span></div>
+                <div class="month-item" data-month="11"><span>Diciembre</span><span class="badge">0</span></div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+        <header class="header">
+            <h2>Dashboard</h2>
+            <div class="header-actions">
+                <div class="date-time" id="date-time">Cargando fecha...</div>
+                <button class="btn btn-outline" id="btn-refresh" onclick="cargarRegistros()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+                    Actualizar
+                </button>
+                <button class="btn btn-primary" onclick="openModalCrear()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    Nuevo registro
+                </button>
+            </div>
+        </header>
+
+        <div class="dashboard-scroll">
+            <!-- KPIS -->
+            <div class="kpi-grid">
+                <div class="kpi-card total">
+                    <div class="kpi-label">Total Visitas</div>
+                    <div class="kpi-value" id="kpi-total">0</div>
+                    <div class="kpi-sub">Registros en la nube</div>
+                </div>
+                <div class="kpi-card resolved">
+                    <div class="kpi-label">Resueltos</div>
+                    <div class="kpi-value" id="kpi-resueltos">0</div>
+                    <div class="kpi-sub" id="kpi-resueltos-sub">0% del total</div>
+                </div>
+                <div class="kpi-card unresolved">
+                    <div class="kpi-label">Resolver (Sin resolver)</div>
+                    <div class="kpi-value" id="kpi-sin-resolver">0</div>
+                    <div class="kpi-sub">Requieren atención</div>
+                </div>
+                <div class="kpi-card in-progress">
+                    <div class="kpi-label">En proceso</div>
+                    <div class="kpi-value" id="kpi-en-proceso">0</div>
+                    <div class="kpi-sub">En seguimiento</div>
+                </div>
+            </div>
+
+            <!-- CHARTS -->
+            <div class="charts-grid">
+                <div class="card">
+                    <h3>Visitas por mes</h3>
+                    <div class="chart-container">
+                        <canvas id="barChart"></canvas>
+                    </div>
+                </div>
+                <div class="card">
+                    <h3>Estado de visitas</h3>
+                    <div class="chart-container">
+                        <div style="width: 100%; max-width: 250px; position: relative;">
+                            <canvas id="doughnutChart"></canvas>
+                            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center;">
+                                <div id="center-percent" style="font-size: 32px; font-weight: 800; color: #1e293b;">0%</div>
+                                <div style="font-size: 12px; color: #64748b; font-weight: 600;">resueltos</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TABLA DE REGISTROS -->
+            <div class="card" style="margin-bottom: 80px;">
+                <h3>Registros Recientes</h3>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Matrícula</th>
+                                <th>Nombre</th>
+                                <th>Asesor</th>
+                                <th>Entrada</th>
+                                <th>Salida</th>
+                                <th>Estatus (Clic para cambiar)</th>
+                                <th style="text-align: center;">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabla-registros-body">
+                            <tr><td colspan="8" style="text-align: center;">Cargando información...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- BOTÓN AGREGAR ASESOR -->
+    <button class="fab" onclick="openAsesorModal()" title="Agregar nuevo asesor">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+    </button>
+
+    <!-- MODAL NUEVO / EDITAR REGISTRO -->
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal">
+            <h3 id="modal-titulo">Nuevo Registro</h3>
+            <form id="registroForm" onsubmit="guardarOEditarRegistro(event)">
+                <input type="hidden" id="filaId" value="">
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Fecha (Sistema)</label>
+                        <input type="text" id="fecha" class="input-readonly" readonly required>
+                    </div>
+                    <div class="form-group">
+                        <label>Matrícula</label>
+                        <input type="text" id="matricula" placeholder="Ej. 123456" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Hora Entrada (Sistema)</label>
+                        <input type="text" id="horaEntrada" class="input-readonly" readonly required>
+                    </div>
+                    <div class="form-group">
+                        <label>Hora Salida</label>
+                        <input type="time" id="horaSalida">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Nombre completo</label>
+                    <input type="text" id="nombre" placeholder="NOMBRE COMPLETO" style="text-transform: uppercase;" oninput="this.value = this.value.toUpperCase()" required>
+                </div>
+                <div class="form-group">
+                    <label>Asesor</label>
+                    <select id="asesor" required>
+                        <option value="">Selecciona un asesor</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Observaciones</label>
+                    <textarea id="observaciones" rows="3" placeholder="DETALLES ADICIONALES..." style="text-transform: uppercase;" oninput="this.value = this.value.toUpperCase()"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Estatus</label>
+                    <select id="estatus" required onchange="manejarCambioEstatusModal()">
+                        <option value="En proceso">🟡 En proceso</option>
+                        <option value="Resuelto">🟢 Resuelto</option>
+                        <option value="Sin resolver">🔴 Resolver (Sin resolver)</option>
+                    </select>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-cancel" onclick="closeModal()">Cancelar</button>
+                    <button type="submit" id="btn-submit" class="btn btn-primary">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL CONFIRMACIÓN DE ELIMINACIÓN -->
+    <div class="confirm-modal-overlay" id="confirmModalOverlay">
+        <div class="confirm-modal">
+            <div style="font-size: 40px; margin-bottom: 10px;">🗑️</div>
+            <h3 style="margin-bottom: 8px; font-size: 18px; color: var(--text-main);">¿Eliminar este registro?</h3>
+            <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 20px;" id="confirmDeleteText">Esta acción no se puede deshacer y borrará la fila de la nube.</p>
+            <div class="modal-actions" style="justify-content: center; gap: 12px; margin-top: 0;">
+                <button type="button" class="btn btn-cancel" onclick="closeConfirmModal()">Cancelar</button>
+                <button type="button" class="btn btn-danger" onclick="ejecutarEliminacion()">Sí, Eliminar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- VENTANA EMERGENTE PARA CAMBIO RÁPIDO DE ESTATUS -->
+    <div class="status-modal-overlay" id="statusModalOverlay">
+        <div class="status-modal">
+            <h3 style="margin-bottom: 6px; font-size: 17px;">Cambiar Estatus</h3>
+            <p style="font-size: 13px; color: var(--text-muted);" id="statusModalSub">Selecciona el nuevo estatus para este registro:</p>
+            
+            <div class="status-options-list">
+                <button type="button" class="status-opt-btn opt-resuelto" onclick="confirmarCambioEstatus('Resuelto')">
+                    <span style="font-size: 18px;">🟢</span>
+                    <div>
+                        <div>Resuelto</div>
+                        <small style="font-size: 11px; font-weight: normal; opacity: 0.85;">Finalizado y registra hora de salida</small>
+                    </div>
+                </button>
+                <button type="button" class="status-opt-btn opt-proceso" onclick="confirmarCambioEstatus('En proceso')">
+                    <span style="font-size: 18px;">🟡</span>
+                    <div>
+                        <div>En proceso</div>
+                        <small style="font-size: 11px; font-weight: normal; opacity: 0.85;">Actualmente en seguimiento</small>
+                    </div>
+                </button>
+                <button type="button" class="status-opt-btn opt-sin-resolver" onclick="confirmarCambioEstatus('Sin resolver')">
+                    <span style="font-size: 18px;">🔴</span>
+                    <div>
+                        <div>Resolver (Sin resolver)</div>
+                        <small style="font-size: 11px; font-weight: normal; opacity: 0.85;">Atención o resolución pendiente</small>
+                    </div>
+                </button>
+            </div>
+
+            <div class="modal-actions" style="margin-top: 15px;">
+                <button type="button" class="btn btn-cancel" style="width: 100%;" onclick="closeStatusModal()">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL ASESOR -->
+    <div class="asesor-modal-overlay" id="asesorModalOverlay">
+        <div class="asesor-modal">
+            <h3>Agregar Nuevo Asesor</h3>
+            <div class="form-group" style="margin-top: 15px;">
+                <label>Nombre del Asesor</label>
+                <input type="text" id="nuevoAsesorNombre" placeholder="EJ. PROF. CARLOS" style="text-transform: uppercase;" oninput="this.value = this.value.toUpperCase()" required>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-cancel" onclick="closeAsesorModal()">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="addAsesor()">Agregar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzOU_5PZsUN2E9U7pz8SA46KQO_PPLW0AbKKUm3LTiLDVKN4UY3VBMvq4G5JBRha7-t/exec';
+
+        let registrosGlobales = [];
+        let filaSeleccionadaParaEstatus = null;
+        let filaSeleccionadaParaEliminar = null;
+        let listaAsesores = [
+            "MTRO. HUMBERTO", "MISS JESSYCA", "MISS LUCY", "PROF. SERGIO",
+            "CONTROL ESCOLAR SECUNDARIA", "CONTROL ESCOLAR BACHILLERATO",
+            "ENFERMERIA MISS MAYTE", "BT ENFERMERIA PROF. MIGUEL",
+            "MISS MARI ELENA", "MISS MARISOL"
+        ];
+
+        if (localStorage.getItem('asesores_bitacora')) {
+            try { listaAsesores = JSON.parse(localStorage.getItem('asesores_bitacora')); } catch (e) {}
+        }
+
+        function mostrarToast(mensaje) {
+            const toast = document.getElementById('toast');
+            toast.textContent = mensaje;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3500);
+        }
+
+        function obtenerFechaActualCorta() {
+            const now = new Date();
+            const d = String(now.getDate()).padStart(2, '0');
+            const m = String(now.getMonth() + 1).padStart(2, '0');
+            return `${d}/${m}/${now.getFullYear()}`;
+        }
+
+        function obtenerHoraActualCorta() {
+            const now = new Date();
+            return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+        }
+
+        function limpiarFecha(fechaStr) {
+            if (!fechaStr) return '-';
+            let str = String(fechaStr).replace(/^'/, '').trim();
+            if (!str) return '-';
+            if (str.includes(' ')) str = str.split(' ')[0];
+            if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
+                const [y, m, d] = str.split('-');
+                return `${d}/${m}/${y}`;
+            }
+            return str;
+        }
+
+        function limpiarHora(horaStr) {
+            if (!horaStr) return '-';
+            let str = String(horaStr).replace(/^'/, '').trim();
+            if (!str) return '-';
+            const match = str.match(/(\d{1,2}):(\d{2})/);
+            if (match) {
+                return `${match[1].padStart(2, '0')}:${match[2]}`;
+            }
+            return str;
+        }
+
+        function renderAsesores() {
+            const select = document.getElementById('asesor');
+            select.innerHTML = '<option value="">Selecciona un asesor</option>';
+            listaAsesores.forEach(asesor => {
+                const opt = document.createElement('option');
+                opt.value = asesor;
+                opt.textContent = asesor;
+                select.appendChild(opt);
+            });
+        }
+        renderAsesores();
+
+        const asesorModal = document.getElementById('asesorModalOverlay');
+        function openAsesorModal() {
+            asesorModal.classList.add('active');
+            document.getElementById('nuevoAsesorNombre').focus();
+        }
+        function closeAsesorModal() {
+            asesorModal.classList.remove('active');
+            document.getElementById('nuevoAsesorNombre').value = '';
+        }
+        function addAsesor() {
+            const nombre = document.getElementById('nuevoAsesorNombre').value.trim().toUpperCase();
+            if (nombre) {
+                if (!listaAsesores.includes(nombre)) {
+                    listaAsesores.push(nombre);
+                    localStorage.setItem('asesores_bitacora', JSON.stringify(listaAsesores));
+                    renderAsesores();
+                    mostrarToast('✅ Asesor agregado');
+                }
+                closeAsesorModal();
+            }
+        }
+
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('date-time').textContent = now.toLocaleDateString('es-MX', {
+                weekday: 'short', year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+            });
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        const modal = document.getElementById('modalOverlay');
+
+        function openModalCrear() {
+            document.getElementById('modal-titulo').textContent = 'Nuevo Registro';
+            document.getElementById('filaId').value = '';
+            document.getElementById('registroForm').reset();
+            document.getElementById('fecha').value = obtenerFechaActualCorta();
+            document.getElementById('horaEntrada').value = obtenerHoraActualCorta();
+            document.getElementById('horaSalida').value = '';
+            document.getElementById('estatus').value = 'En proceso';
+            modal.classList.add('active');
+        }
+
+        function openModalEditar(fila) {
+            const reg = registrosGlobales.find(r => String(r.fila) === String(fila));
+            if (!reg) return;
+
+            document.getElementById('modal-titulo').textContent = 'Editar Registro';
+            document.getElementById('filaId').value = reg.fila;
+            document.getElementById('matricula').value = String(reg.Matricula || '').replace(/^'/, '');
+            document.getElementById('nombre').value = (reg.Nombre || '').toUpperCase();
+            document.getElementById('asesor').value = reg.Asesor || '';
+            document.getElementById('observaciones').value = (reg.Observaciones || '').toUpperCase();
+            
+            const rawStatus = (reg.Estatus || 'En proceso').trim().toLowerCase();
+            if (rawStatus === 'resuelto') document.getElementById('estatus').value = 'Resuelto';
+            else if (rawStatus === 'sin resolver') document.getElementById('estatus').value = 'Sin resolver';
+            else document.getElementById('estatus').value = 'En proceso';
+
+            document.getElementById('fecha').value = limpiarFecha(reg.Fecha);
+            const entradaLimpia = limpiarHora(reg.HoraEntrada);
+            document.getElementById('horaEntrada').value = entradaLimpia !== '-' ? entradaLimpia : obtenerHoraActualCorta();
+
+            const salidaLimpia = limpiarHora(reg.HoraSalida);
+            document.getElementById('horaSalida').value = salidaLimpia !== '-' ? salidaLimpia : '';
+
+            modal.classList.add('active');
+        }
+
+        function closeModal() {
+            modal.classList.remove('active');
+            document.getElementById('registroForm').reset();
+            document.getElementById('filaId').value = '';
+        }
+
+        function manejarCambioEstatusModal() {
+            const estatusVal = document.getElementById('estatus').value;
+            const inputSalida = document.getElementById('horaSalida');
+            if (estatusVal === 'Resuelto') {
+                if (!inputSalida.value) {
+                    inputSalida.value = obtenerHoraActualCorta();
+                }
+            }
+        }
+
+        // CONFIRMAR Y ELIMINAR REGISTRO
+        const confirmModal = document.getElementById('confirmModalOverlay');
+
+        function openModalEliminar(fila) {
+            filaSeleccionadaParaEliminar = fila;
+            const reg = registrosGlobales.find(r => String(r.fila) === String(fila));
+            const txt = document.getElementById('confirmDeleteText');
+            if (reg && reg.Nombre) {
+                txt.textContent = `¿Seguro que deseas eliminar el registro de "${reg.Nombre}"? Esta acción no se puede deshacer.`;
+            } else {
+                txt.textContent = 'Esta acción no se puede deshacer y borrará la fila de la nube.';
+            }
+            confirmModal.classList.add('active');
+        }
+
+        function closeConfirmModal() {
+            confirmModal.classList.remove('active');
+            filaSeleccionadaParaEliminar = null;
+        }
+
+        async function ejecutarEliminacion() {
+            const fila = filaSeleccionadaParaEliminar;
+            if (!fila) return;
+
+            closeConfirmModal();
+            mostrarToast('Eliminando de la nube...');
+
+            // Optimistic UI: quitarlo localmente y refrescar vista
+            registrosGlobales = registrosGlobales.filter(r => String(r.fila) !== String(fila));
+            procesarDatosDashboard(registrosGlobales);
+            renderTablaRegistros(registrosGlobales);
+
+            const payload = {
+                accion: 'eliminar',
+                fila: fila
+            };
+
+            try {
+                await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify(payload),
+                    mode: 'no-cors'
+                });
+
+                mostrarToast('🗑️ Registro eliminado correctamente');
+                setTimeout(cargarRegistros, 1200);
+            } catch (error) {
+                console.error(error);
+                mostrarToast('❌ Error al intentar eliminar en la nube');
+                cargarRegistros();
+            }
+        }
+
+        // CONTROL DE VENTANA EMERGENTE PARA CAMBIO DE ESTATUS
+        const statusModal = document.getElementById('statusModalOverlay');
+
+        function openModalCambioEstatus(fila) {
+            filaSeleccionadaParaEstatus = fila;
+            const reg = registrosGlobales.find(r => String(r.fila) === String(fila));
+            const sub = document.getElementById('statusModalSub');
+            if (reg && reg.Nombre) {
+                sub.textContent = `Cambiar estatus de: ${reg.Nombre}`;
+            } else {
+                sub.textContent = 'Selecciona el nuevo estatus para este registro:';
+            }
+            statusModal.classList.add('active');
+        }
+
+        function closeStatusModal() {
+            statusModal.classList.remove('active');
+            filaSeleccionadaParaEstatus = null;
+        }
+
+        async function confirmarCambioEstatus(nuevoEstatus) {
+            const fila = filaSeleccionadaParaEstatus;
+            if (!fila) return;
+
+            closeStatusModal();
+            const reg = registrosGlobales.find(r => String(r.fila) === String(fila));
+            if (!reg) return;
+
+            let salidaFinal = reg.HoraSalida ? limpiarHora(reg.HoraSalida) : '';
+            if (salidaFinal === '-') salidaFinal = '';
+
+            if (nuevoEstatus === 'Resuelto' && !salidaFinal) {
+                salidaFinal = obtenerHoraActualCorta();
+                const salidaCelda = document.getElementById(`salida-celda-${fila}`);
+                if (salidaCelda) salidaCelda.textContent = salidaFinal;
+            }
+
+            reg.Estatus = nuevoEstatus;
+            reg.HoraSalida = salidaFinal;
+
+            const payload = {
+                accion: 'editar',
+                fila: fila,
+                Matricula: reg.Matricula || '',
+                Nombre: (reg.Nombre || '').toUpperCase(),
+                Asesor: reg.Asesor || '',
+                Observaciones: (reg.Observaciones || '').toUpperCase(),
+                Estatus: nuevoEstatus,
+                Fecha: reg.Fecha || obtenerFechaActualCorta(),
+                HoraEntrada: reg.HoraEntrada || '',
+                HoraSalida: salidaFinal
+            };
+
+            mostrarToast(`Estatus actualizado a: ${nuevoEstatus}`);
+            procesarDatosDashboard(registrosGlobales);
+            renderTablaRegistros(registrosGlobales);
+
+            try {
+                await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify(payload),
+                    mode: 'no-cors'
+                });
+            } catch (error) {
+                console.error(error);
+                mostrarToast('⚠️ Error al sincronizar con la nube');
+            }
+        }
+
+        let barChartInstance = null;
+        let doughnutChartInstance = null;
+
+        function initCharts() {
+            const barCtx = document.getElementById('barChart').getContext('2d');
+            barChartInstance = new Chart(barCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'],
+                    datasets: [{ label: 'Visitas', data: Array(12).fill(0), backgroundColor: '#2563eb', borderRadius: 4, barThickness: 16 }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { x: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { stepSize: 1 } }, y: { grid: { display: false } } }
+                }
+            });
+
+            const doughnutCtx = document.getElementById('doughnutChart').getContext('2d');
+            doughnutChartInstance = new Chart(doughnutCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Resueltos', 'Resolver', 'En proceso'],
+                    datasets: [{ data: [0, 0, 0], backgroundColor: ['#16a34a', '#dc2626', '#d97706'], borderWidth: 0 }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, cutout: '75%', plugins: { legend: { display: false } } }
+            });
+        }
+        initCharts();
+
+        async function cargarRegistros() {
+            const btnRefresh = document.getElementById('btn-refresh');
+            const tbody = document.getElementById('tabla-registros-body');
+            
+            if (btnRefresh) {
+                btnRefresh.disabled = true;
+                btnRefresh.textContent = 'Cargando...';
+            }
+
+            try {
+                const response = await fetch(SCRIPT_URL, {
+                    method: 'GET',
+                    redirect: 'follow'
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Error HTTP: ${response.status} - ${response.statusText}`);
+                }
+
+                const result = await response.json();
+
+                if (result.status === 'success' && Array.isArray(result.data)) {
+                    registrosGlobales = result.data;
+                    procesarDatosDashboard(registrosGlobales);
+                    renderTablaRegistros(registrosGlobales);
+                } else {
+                    throw new Error(result.message || 'Estructura no válida');
+                }
+            } catch (err) {
+                console.error('Error al cargar datos:', err);
+                if (tbody) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="8" style="text-align: center; color: #ef4444; padding: 20px;">
+                                ⚠️ <strong>No se pudieron cargar los datos.</strong><br>
+                                <small style="color: #64748b;">${err.message}</small>
+                            </td>
+                        </tr>
+                    `;
+                }
+            } finally {
+                if (btnRefresh) {
+                    btnRefresh.disabled = false;
+                    btnRefresh.innerHTML = `
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+                        Actualizar
+                    `;
+                }
+            }
+        }
+
+        function procesarDatosDashboard(data) {
+            const total = data.length;
+            document.getElementById('total-count-sidebar').textContent = total;
+            document.getElementById('kpi-total').textContent = total;
+
+            let resueltos = 0, sinResolver = 0, enProceso = 0;
+            const mesesCount = Array(12).fill(0);
+
+            data.forEach(item => {
+                const estatus = (item.Estatus || '').trim().toLowerCase();
+                if (estatus === 'resuelto') resueltos++;
+                else if (estatus === 'sin resolver' || estatus === 'resolver') sinResolver++;
+                else if (estatus === 'en proceso') enProceso++;
+
+                const f = limpiarFecha(item.Fecha);
+                if (f && f !== '-') {
+                    let mes = -1;
+                    if (f.includes('/')) {
+                        const parts = f.split('/');
+                        mes = parseInt(parts[1], 10) - 1;
+                    } else if (f.includes('-')) {
+                        const parts = f.split('-');
+                        mes = parseInt(parts[1], 10) - 1;
+                    }
+                    if (mes >= 0 && mes < 12) {
+                        mesesCount[mes]++;
+                    }
+                }
+            });
+
+            document.getElementById('kpi-resueltos').textContent = resueltos;
+            document.getElementById('kpi-sin-resolver').textContent = sinResolver;
+            document.getElementById('kpi-en-proceso').textContent = enProceso;
+
+            const resueltosPorc = total > 0 ? Math.round((resueltos / total) * 100) : 0;
+            document.getElementById('kpi-resueltos-sub').textContent = `${resueltosPorc}% del total`;
+            document.getElementById('center-percent').textContent = `${resueltosPorc}%`;
+
+            document.querySelectorAll('#sidebar-month-list .month-item').forEach(elem => {
+                const mIndex = parseInt(elem.getAttribute('data-month'), 10);
+                const badge = elem.querySelector('.badge');
+                if (badge && !isNaN(mIndex)) badge.textContent = mesesCount[mIndex];
+            });
+
+            barChartInstance.data.datasets[0].data = mesesCount;
+            barChartInstance.update();
+
+            doughnutChartInstance.data.datasets[0].data = total === 0 ? [1] : [resueltos, sinResolver, enProceso];
+            doughnutChartInstance.data.datasets[0].backgroundColor = total === 0 ? ['#e2e8f0'] : ['#16a34a', '#dc2626', '#d97706'];
+            doughnutChartInstance.update();
+        }
+
+        function renderTablaRegistros(data) {
+            const tbody = document.getElementById('tabla-registros-body');
+            if (data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align: center;">No hay registros disponibles.</td></tr>';
+                return;
+            }
+
+            let html = '';
+            const copia = [...data].reverse();
+            copia.forEach(reg => {
+                const est = (reg.Estatus || 'En proceso').trim();
+                let badgeClass = 'badge-proceso';
+                let icono = '🟡';
+                let textoEstatus = 'En proceso';
+
+                if (est.toLowerCase() === 'resuelto') {
+                    badgeClass = 'badge-resuelto';
+                    icono = '🟢';
+                    textoEstatus = 'Resuelto';
+                } else if (est.toLowerCase() === 'sin resolver' || est.toLowerCase() === 'resolver') {
+                    badgeClass = 'badge-sin-resolver';
+                    icono = '🔴';
+                    textoEstatus = 'Sin resolver';
+                }
+
+                const fechaFormato = limpiarFecha(reg.Fecha);
+                const entradaFormato = limpiarHora(reg.HoraEntrada);
+                const salidaFormato = limpiarHora(reg.HoraSalida);
+
+                html += `
+                    <tr>
+                        <td>${fechaFormato}</td>
+                        <td><strong>${String(reg.Matricula || '-').replace(/^'/, '')}</strong></td>
+                        <td>${(reg.Nombre || '-').toUpperCase()}</td>
+                        <td>${reg.Asesor || '-'}</td>
+                        <td>${entradaFormato}</td>
+                        <td id="salida-celda-${reg.fila}">${salidaFormato}</td>
+                        <td>
+                            <button type="button" class="btn-badge-estatus ${badgeClass}" onclick="openModalCambioEstatus('${reg.fila}')" title="Clic para cambiar estatus">
+                                <span>${icono}</span>
+                                <span>${textoEstatus}</span>
+                                <span style="font-size: 10px; opacity: 0.65;">▼</span>
+                            </button>
+                        </td>
+                        <td>
+                            <div class="action-buttons">
+                                <button class="btn btn-outline btn-sm" onclick="openModalEditar('${reg.fila}')" title="Editar registro">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                                    Editar
+                                </button>
+                                <button class="btn btn-danger-outline btn-sm" onclick="openModalEliminar('${reg.fila}')" title="Eliminar registro">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                                    Eliminar
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+            tbody.innerHTML = html;
+        }
+
+        async function guardarOEditarRegistro(e) {
+            e.preventDefault();
+
+            const fila = document.getElementById('filaId').value;
+            const esEdicion = Boolean(fila);
+
+            const payload = {
+                accion: esEdicion ? 'editar' : 'crear',
+                fila: fila || null,
+                Matricula: document.getElementById('matricula').value.trim(),
+                Nombre: document.getElementById('nombre').value.trim().toUpperCase(),
+                Asesor: document.getElementById('asesor').value,
+                Observaciones: document.getElementById('observaciones').value.trim().toUpperCase(),
+                Estatus: document.getElementById('estatus').value,
+                Fecha: document.getElementById('fecha').value,
+                HoraEntrada: document.getElementById('horaEntrada').value,
+                HoraSalida: document.getElementById('horaSalida').value
+            };
+
+            closeModal();
+            mostrarToast(esEdicion ? 'Actualizando en la nube...' : 'Guardando registro...');
+
+            try {
+                await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify(payload),
+                    mode: 'no-cors'
+                });
+
+                mostrarToast(esEdicion ? '✅ Registro actualizado' : '✅ Guardado con éxito');
+                setTimeout(cargarRegistros, 1200);
+            } catch (error) {
+                console.error(error);
+                mostrarToast('❌ Error de conexión al guardar');
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', cargarRegistros);
+    </script>
+</body>
+</html>
