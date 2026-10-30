@@ -477,7 +477,8 @@
     </div>
 
     <script>
-        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzOU_5PZsUN2E9U7pz8SA46KQO_PPLW0AbKKUm3LTiLDVKN4UY3VBMvq4G5JBRha7-t/exec';
+        // URL de tu Web App en Google Apps Script
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwzGi60hAg3-VIl-WI45lF_nxeC6YYEiHy0oAH35GCFypufhSrcv6n--2zs_X3DGg1-_A/exec';
 
         let registrosGlobales = [];
         let filaSeleccionadaParaEstatus = null;
@@ -604,7 +605,7 @@
             
             const rawStatus = (reg.Estatus || 'En proceso').trim().toLowerCase();
             if (rawStatus === 'resuelto') document.getElementById('estatus').value = 'Resuelto';
-            else if (rawStatus === 'sin resolver') document.getElementById('estatus').value = 'Sin resolver';
+            else if (rawStatus === 'sin resolver' || rawStatus === 'resolver') document.getElementById('estatus').value = 'Sin resolver';
             else document.getElementById('estatus').value = 'En proceso';
 
             document.getElementById('fecha').value = limpiarFecha(reg.Fecha);
@@ -660,14 +661,14 @@
             closeConfirmModal();
             mostrarToast('Eliminando de la nube...');
 
-            // Optimistic UI: quitarlo localmente y refrescar vista
+            // Remoción visual inmediata
             registrosGlobales = registrosGlobales.filter(r => String(r.fila) !== String(fila));
             procesarDatosDashboard(registrosGlobales);
             renderTablaRegistros(registrosGlobales);
 
             const payload = {
                 accion: 'eliminar',
-                fila: fila
+                fila: Number(fila)
             };
 
             try {
@@ -679,7 +680,7 @@
                 });
 
                 mostrarToast('🗑️ Registro eliminado correctamente');
-                setTimeout(cargarRegistros, 1200);
+                setTimeout(cargarRegistros, 1800);
             } catch (error) {
                 console.error(error);
                 mostrarToast('❌ Error al intentar eliminar en la nube');
@@ -687,7 +688,7 @@
             }
         }
 
-        // CONTROL DE VENTANA EMERGENTE PARA CAMBIO DE ESTATUS
+        // MODAL CAMBIO RÁPIDO DE ESTATUS
         const statusModal = document.getElementById('statusModalOverlay');
 
         function openModalCambioEstatus(fila) {
@@ -729,7 +730,7 @@
 
             const payload = {
                 accion: 'editar',
-                fila: fila,
+                fila: Number(fila),
                 Matricula: reg.Matricula || '',
                 Nombre: (reg.Nombre || '').toUpperCase(),
                 Asesor: reg.Asesor || '',
@@ -962,7 +963,7 @@
 
             const payload = {
                 accion: esEdicion ? 'editar' : 'crear',
-                fila: fila || null,
+                fila: fila ? Number(fila) : null,
                 Matricula: document.getElementById('matricula').value.trim(),
                 Nombre: document.getElementById('nombre').value.trim().toUpperCase(),
                 Asesor: document.getElementById('asesor').value,
