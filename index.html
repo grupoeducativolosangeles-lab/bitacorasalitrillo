@@ -164,7 +164,6 @@
         .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 25px; }
         .btn-cancel { background: #f1f5f9; color: var(--text-main); }
 
-        /* LISTA OPCIONES MODAL CAMBIO DE ESTATUS */
         .status-options-list { display: flex; flex-direction: column; gap: 10px; margin: 18px 0; }
         .status-opt-btn {
             display: flex;
@@ -198,12 +197,10 @@
             border-color: #fecaca;
         }
 
-        /* BOTÓN FLOTANTE */
         .fab { position: fixed; bottom: 30px; right: 30px; width: 60px; height: 60px; background-color: var(--blue-primary); color: white; border-radius: 50%; display: flex; justify-content: center; align-items: center; box-shadow: 0 4px 10px rgba(37, 99, 235, 0.4); cursor: pointer; transition: transform 0.2s; z-index: 900; border: none; }
         .fab:hover { transform: scale(1.1); background-color: var(--blue-dark); }
         .fab svg { width: 30px; height: 30px; }
 
-        /* NOTIFICACIÓN TOAST */
         #toast {
             position: fixed;
             top: 25px;
@@ -278,7 +275,6 @@
         </header>
 
         <div class="dashboard-scroll">
-            <!-- KPIS -->
             <div class="kpi-grid">
                 <div class="kpi-card total">
                     <div class="kpi-label">Total Visitas</div>
@@ -302,7 +298,6 @@
                 </div>
             </div>
 
-            <!-- CHARTS -->
             <div class="charts-grid">
                 <div class="card">
                     <h3>Visitas por mes</h3>
@@ -324,7 +319,6 @@
                 </div>
             </div>
 
-            <!-- TABLA DE REGISTROS -->
             <div class="card" style="margin-bottom: 80px;">
                 <h3>Registros Recientes</h3>
                 <div class="table-responsive">
@@ -350,7 +344,6 @@
         </div>
     </main>
 
-    <!-- BOTÓN AGREGAR ASESOR -->
     <button class="fab" onclick="openAsesorModal()" title="Agregar nuevo asesor">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
     </button>
@@ -477,8 +470,10 @@
     </div>
 
     <script>
-        // URL de tu Web App en Google Apps Script
-        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwzGi60hAg3-VIl-WI45lF_nxeC6YYEiHy0oAH35GCFypufhSrcv6n--2zs_X3DGg1-_A/exec';
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzWEf_N9vgZsc1Vsv-QIfulQ687WOjbetv6l7Boo1OjIH2top2RlZg3llUABev1lHLO/exec';
+
+        // Constante explícita para la zona horaria de México
+        const TIMEZONE_MX = 'America/Mexico_City';
 
         let registrosGlobales = [];
         let filaSeleccionadaParaEstatus = null;
@@ -501,38 +496,86 @@
             setTimeout(() => toast.classList.remove('show'), 3500);
         }
 
+        // ==========================================
+        // FUNCIONES DE FECHA Y HORA (ZONA MÉXICO)
+        // ==========================================
         function obtenerFechaActualCorta() {
             const now = new Date();
-            const d = String(now.getDate()).padStart(2, '0');
-            const m = String(now.getMonth() + 1).padStart(2, '0');
-            return `${d}/${m}/${now.getFullYear()}`;
+            const formatter = new Intl.DateTimeFormat('es-MX', {
+                timeZone: TIMEZONE_MX,
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric'
+            });
+            return formatter.format(now);
         }
 
         function obtenerHoraActualCorta() {
             const now = new Date();
-            return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+            const formatter = new Intl.DateTimeFormat('es-MX', {
+                timeZone: TIMEZONE_MX,
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false
+            });
+            return formatter.format(now);
         }
 
         function limpiarFecha(fechaStr) {
             if (!fechaStr) return '-';
             let str = String(fechaStr).replace(/^'/, '').trim();
-            if (!str) return '-';
-            if (str.includes(' ')) str = str.split(' ')[0];
-            if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
-                const [y, m, d] = str.split('-');
-                return `${d}/${m}/${y}`;
+            if (!str || str === '-') return '-';
+
+            // Si ya viene como dd/mm/yyyy o dd-mm-yyyy
+            const matchSimple = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+            if (matchSimple) {
+                return `${matchSimple[1].padStart(2, '0')}/${matchSimple[2].padStart(2, '0')}/${matchSimple[3]}`;
             }
+
+            // Si viene en formato yyyy-mm-dd
+            const matchISO = str.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
+            if (matchISO) {
+                return `${matchISO[3].padStart(2, '0')}/${matchISO[2].padStart(2, '0')}/${matchISO[1]}`;
+            }
+
+            // Si viene como cadena de objeto Date (ej: "Fri Oct 31 2026...")
+            const parsed = new Date(str);
+            if (!isNaN(parsed.getTime())) {
+                const formatter = new Intl.DateTimeFormat('es-MX', {
+                    timeZone: TIMEZONE_MX,
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric'
+                });
+                return formatter.format(parsed);
+            }
+
             return str;
         }
 
         function limpiarHora(horaStr) {
             if (!horaStr) return '-';
             let str = String(horaStr).replace(/^'/, '').trim();
-            if (!str) return '-';
+            if (!str || str === '-') return '-';
+
+            // Si viene en formato simple HH:mm o H:m
             const match = str.match(/(\d{1,2}):(\d{2})/);
-            if (match) {
+            if (match && !str.toLowerCase().includes('gmt') && !str.includes('t') && !str.includes('T')) {
                 return `${match[1].padStart(2, '0')}:${match[2]}`;
             }
+
+            // Si viene como fecha completa con hora
+            const parsed = new Date(str);
+            if (!isNaN(parsed.getTime())) {
+                const formatter = new Intl.DateTimeFormat('es-MX', {
+                    timeZone: TIMEZONE_MX,
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: false
+                });
+                return formatter.format(parsed);
+            }
+
             return str;
         }
 
@@ -570,10 +613,19 @@
             }
         }
 
+        // RELOJ EN TIEMPO REAL CON HORA EXACTA DE MÉXICO
         function updateClock() {
             const now = new Date();
             document.getElementById('date-time').textContent = now.toLocaleDateString('es-MX', {
-                weekday: 'short', year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                timeZone: TIMEZONE_MX,
+                weekday: 'short',
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
             });
         }
         setInterval(updateClock, 1000);
@@ -634,7 +686,6 @@
             }
         }
 
-        // CONFIRMAR Y ELIMINAR REGISTRO
         const confirmModal = document.getElementById('confirmModalOverlay');
 
         function openModalEliminar(fila) {
@@ -661,7 +712,6 @@
             closeConfirmModal();
             mostrarToast('Eliminando de la nube...');
 
-            // Remoción visual inmediata
             registrosGlobales = registrosGlobales.filter(r => String(r.fila) !== String(fila));
             procesarDatosDashboard(registrosGlobales);
             renderTablaRegistros(registrosGlobales);
@@ -688,7 +738,6 @@
             }
         }
 
-        // MODAL CAMBIO RÁPIDO DE ESTATUS
         const statusModal = document.getElementById('statusModalOverlay');
 
         function openModalCambioEstatus(fila) {
