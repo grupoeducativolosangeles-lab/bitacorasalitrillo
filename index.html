@@ -94,6 +94,41 @@
         .card h3 { font-size: 16px; font-weight: 700; margin-bottom: 16px; color: var(--text-main); }
         .chart-container { position: relative; height: 280px; width: 100%; display: flex; justify-content: center; align-items: center; }
 
+        /* FILTROS */
+        .filters-container {
+            display: flex;
+            align-items: flex-end;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+        .filter-item {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            min-width: 180px;
+        }
+        .filter-item label {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .filter-item input, .filter-item select {
+            padding: 9px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 13px;
+            font-family: inherit;
+            color: var(--text-main);
+            background: white;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .filter-item input:focus, .filter-item select:focus {
+            border-color: var(--blue-primary);
+        }
+
         /* TABLA DE REGISTROS */
         .table-responsive { width: 100%; overflow-x: auto; }
         table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; }
@@ -319,8 +354,41 @@
                 </div>
             </div>
 
+            <!-- FILTROS DE BÚSQUEDA -->
+            <div class="card" style="margin-bottom: 20px;">
+                <div class="filters-container">
+                    <div class="filter-item">
+                        <label for="filtroFecha">Filtrar por Fecha</label>
+                        <input type="date" id="filtroFecha" onchange="aplicarFiltros()">
+                    </div>
+                    <div class="filter-item">
+                        <label for="filtroAsesor">Filtrar por Asesor</label>
+                        <select id="filtroAsesor" onchange="aplicarFiltros()">
+                            <option value="">Todos los asesores</option>
+                        </select>
+                    </div>
+                    <div class="filter-item">
+                        <label for="filtroEstatus">Filtrar por Estatus</label>
+                        <select id="filtroEstatus" onchange="aplicarFiltros()">
+                            <option value="">Todos los estatus</option>
+                            <option value="En proceso">🟡 En proceso</option>
+                            <option value="Resuelto">🟢 Resuelto</option>
+                            <option value="Sin resolver">🔴 Resolver (Sin resolver)</option>
+                        </select>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button type="button" class="btn btn-outline btn-sm" onclick="filtrarSoloHoy()" title="Mostrar registros del día de hoy">
+                            📅 Hoy
+                        </button>
+                        <button type="button" class="btn btn-outline btn-sm" onclick="limpiarFiltros()" title="Mostrar todos los registros">
+                            Ver todos
+                        </button>
+                    </div>
+                </div>
+            </div>
+
             <div class="card" style="margin-bottom: 80px;">
-                <h3>Registros Recientes</h3>
+                <h3 id="titulo-registros">Registros Recientes (Hoy)</h3>
                 <div class="table-responsive">
                     <table>
                         <thead>
@@ -571,12 +639,25 @@
 
         function renderAsesores() {
             const select = document.getElementById('asesor');
+            const selectFiltro = document.getElementById('filtroAsesor');
+
             select.innerHTML = '<option value="">Selecciona un asesor</option>';
+            if (selectFiltro) {
+                selectFiltro.innerHTML = '<option value="">Todos los asesores</option>';
+            }
+
             listaAsesores.forEach(asesor => {
                 const opt = document.createElement('option');
                 opt.value = asesor;
                 opt.textContent = asesor;
                 select.appendChild(opt);
+
+                if (selectFiltro) {
+                    const optFiltro = document.createElement('option');
+                    optFiltro.value = asesor;
+                    optFiltro.textContent = asesor;
+                    selectFiltro.appendChild(optFiltro);
+                }
             });
         }
         renderAsesores();
@@ -619,6 +700,67 @@
         }
         setInterval(updateClock, 1000);
         updateClock();
+
+        /* LÓGICA DE FILTROS */
+        function aplicarFiltros() {
+            const fechaInput = document.getElementById('filtroFecha').value;
+            const asesorSeleccionado = document.getElementById('filtroAsesor').value.trim().toUpperCase();
+            const estatusSeleccionado = document.getElementById('filtroEstatus').value.trim().toLowerCase();
+            const titulo = document.getElementById('titulo-registros');
+
+            let fechaBuscada = '';
+            if (fechaInput) {
+                const parts = fechaInput.split('-');
+                fechaBuscada = `${parts[2]}/${parts[1]}/${parts[0]}`;
+            }
+
+            const hoy = obtenerFechaActualCorta();
+            if (fechaBuscada === hoy && !asesorSeleccionado && !estatusSeleccionado) {
+                titulo.textContent = 'Registros Recientes (Hoy)';
+            } else if (fechaBuscada || asesorSeleccionado || estatusSeleccionado) {
+                titulo.textContent = 'Registros Filtrados';
+            } else {
+                titulo.textContent = 'Todos los Registros';
+            }
+
+            const filtrados = registrosGlobales.filter(reg => {
+                const fechaReg = limpiarFecha(reg.Fecha);
+                const asesorReg = (reg.Asesor || '').trim().toUpperCase();
+                const estatusReg = (reg.Estatus || '').trim().toLowerCase();
+
+                const coincideFecha = !fechaBuscada || fechaReg === fechaBuscada;
+                const coincideAsesor = !asesorSeleccionado || asesorReg === asesorSeleccionado;
+                
+                let coincideEstatus = true;
+                if (estatusSeleccionado) {
+                    if (estatusSeleccionado === 'sin resolver') {
+                        coincideEstatus = (estatusReg === 'sin resolver' || estatusReg === 'resolver');
+                    } else {
+                        coincideEstatus = (estatusReg === estatusSeleccionado);
+                    }
+                }
+
+                return coincideFecha && coincideAsesor && coincideEstatus;
+            });
+
+            renderTablaRegistros(filtrados);
+        }
+
+        function filtrarSoloHoy() {
+            const hoy = obtenerFechaActualCorta();
+            const partes = hoy.split('/');
+            document.getElementById('filtroFecha').value = `${partes[2]}-${partes[1]}-${partes[0]}`;
+            document.getElementById('filtroAsesor').value = '';
+            document.getElementById('filtroEstatus').value = '';
+            aplicarFiltros();
+        }
+
+        function limpiarFiltros() {
+            document.getElementById('filtroFecha').value = '';
+            document.getElementById('filtroAsesor').value = '';
+            document.getElementById('filtroEstatus').value = '';
+            aplicarFiltros();
+        }
 
         const modal = document.getElementById('modalOverlay');
 
@@ -703,7 +845,7 @@
 
             registrosGlobales = registrosGlobales.filter(r => String(r.fila) !== String(fila));
             procesarDatosDashboard(registrosGlobales);
-            renderTablaRegistros(registrosGlobales);
+            aplicarFiltros();
 
             const payload = {
                 accion: 'eliminar',
@@ -766,7 +908,6 @@
             reg.Estatus = nuevoEstatus;
             reg.HoraSalida = salidaFinal;
 
-            // Orden exacto de payload para sincronizar con Backend
             const payload = {
                 accion: 'editar',
                 fila: Number(fila),
@@ -782,7 +923,7 @@
 
             mostrarToast(`Estatus actualizado a: ${nuevoEstatus}`);
             procesarDatosDashboard(registrosGlobales);
-            renderTablaRegistros(registrosGlobales);
+            aplicarFiltros();
 
             try {
                 await fetch(SCRIPT_URL, {
@@ -853,7 +994,12 @@
                 if (result.status === 'success' && Array.isArray(result.data)) {
                     registrosGlobales = result.data;
                     procesarDatosDashboard(registrosGlobales);
-                    renderTablaRegistros(registrosGlobales);
+                    
+                    if (!document.getElementById('filtroFecha').value && !document.getElementById('filtroAsesor').value && !document.getElementById('filtroEstatus').value) {
+                        filtrarSoloHoy();
+                    } else {
+                        aplicarFiltros();
+                    }
                 } else {
                     throw new Error(result.message || 'Estructura no válida');
                 }
@@ -935,7 +1081,7 @@
         function renderTablaRegistros(data) {
             const tbody = document.getElementById('tabla-registros-body');
             if (data.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="8" style="text-align: center;">No hay registros disponibles.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 20px; color: #64748b;">No se encontraron registros para los filtros seleccionados.</td></tr>';
                 return;
             }
 
@@ -1000,7 +1146,6 @@
             const fila = document.getElementById('filaId').value;
             const esEdicion = Boolean(fila);
 
-            // Mapeo corregido: coincide uno a uno con el orden de las columnas de tu Sheet
             const payload = {
                 accion: esEdicion ? 'editar' : 'crear',
                 fila: fila ? Number(fila) : null,
@@ -1011,7 +1156,7 @@
                 HoraSalida: document.getElementById('horaSalida').value,
                 Observaciones: document.getElementById('observaciones').value.trim().toUpperCase(),
                 Estatus: document.getElementById('estatus').value,
-                Fecha: document.getElementById('fecha').value // Corresponde al Timestamp (Col H)
+                Fecha: document.getElementById('fecha').value
             };
 
             closeModal();
