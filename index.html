@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bitácora Salitrillo - Dashboard</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
@@ -47,10 +47,42 @@
         .main-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
         
         /* HEADER */
-        .header { background-color: var(--bg-card); border-bottom: 1px solid var(--border-color); padding: 16px 30px; display: flex; justify-content: space-between; align-items: center; }
+        .header { background-color: var(--bg-card); border-bottom: 1px solid var(--border-color); padding: 14px 30px; display: flex; justify-content: space-between; align-items: center; }
         .header h2 { font-size: 24px; font-weight: 700; }
-        .header-actions { display: flex; align-items: center; gap: 12px; }
-        .date-time { background: #f1f5f9; padding: 8px 14px; border-radius: 8px; font-size: 13px; color: var(--text-muted); font-weight: 500; }
+        .header-actions { display: flex; align-items: center; gap: 14px; }
+
+        /* RELOJ ESTILO DIGITAL MINIMALISTA */
+        .clock-widget {
+            background: linear-gradient(135deg, #3d4677 0%, #2f3560 100%);
+            color: #ffffff;
+            padding: 8px 24px;
+            border-radius: 14px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 14px rgba(47, 53, 96, 0.25);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            user-select: none;
+            min-width: 190px;
+        }
+        .clock-time {
+            font-size: 26px;
+            font-weight: 900;
+            line-height: 1;
+            letter-spacing: 1.5px;
+            color: #ffffff;
+            font-variant-numeric: tabular-nums;
+            margin-bottom: 3px;
+        }
+        .clock-date {
+            font-size: 12px;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.88);
+            letter-spacing: 0.3px;
+            text-transform: capitalize;
+        }
+
         .btn { display: flex; align-items: center; gap: 8px; padding: 9px 16px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; transition: 0.2s; }
         .btn-outline { background: white; border: 1px solid var(--border-color); color: var(--text-main); }
         .btn-outline:hover { background: #f8fafc; }
@@ -297,7 +329,11 @@
         <header class="header">
             <h2>Dashboard</h2>
             <div class="header-actions">
-                <div class="date-time" id="date-time">Cargando fecha...</div>
+                <!-- RELOJ DIGITAL MINIMALISTA -->
+                <div class="clock-widget">
+                    <div class="clock-time" id="clock-time">00:00:00</div>
+                    <div class="clock-date" id="clock-date">Cargando fecha...</div>
+                </div>
                 <button class="btn btn-outline" id="btn-refresh" onclick="cargarRegistros()">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
                     Actualizar
@@ -686,17 +722,29 @@
 
         function updateClock() {
             const now = new Date();
-            document.getElementById('date-time').textContent = now.toLocaleDateString('es-MX', {
+            
+            // Hora grande: HH:mm:ss
+            const timeStr = now.toLocaleTimeString('es-MX', {
                 timeZone: TIMEZONE_MX,
-                weekday: 'short',
-                year: 'numeric',
-                month: 'short',
-                day: 'numeric',
                 hour: '2-digit',
                 minute: '2-digit',
                 second: '2-digit',
                 hour12: false
             });
+
+            // Fecha en español estilo minimalista (ej. Dom, 23 Nov)
+            const dateStr = now.toLocaleDateString('es-MX', {
+                timeZone: TIMEZONE_MX,
+                weekday: 'short',
+                day: 'numeric',
+                month: 'short',
+                year: 'numeric'
+            });
+
+            const elTime = document.getElementById('clock-time');
+            const elDate = document.getElementById('clock-date');
+            if (elTime) elTime.textContent = timeStr;
+            if (elDate) elDate.textContent = dateStr.replace('.', '');
         }
         setInterval(updateClock, 1000);
         updateClock();
